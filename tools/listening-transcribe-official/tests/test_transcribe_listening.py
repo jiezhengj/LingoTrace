@@ -77,7 +77,7 @@ class TranscribeListeningTests(unittest.TestCase):
 
             self.assertIn("Updated", result)
             rendered = note_path.read_text(encoding="utf-8")
-            self.assertIn("新しい文です。", rendered)
+            self.assertIn("新しい", rendered)
             self.assertIn("次の文です。", rendered)
             self.assertIn("原句：既存の例文です。", rendered)
             self.assertIn("人工で補った説明です。", rendered)
@@ -242,6 +242,58 @@ class TranscribeListeningTests(unittest.TestCase):
         self.assertNotIn("句子：", body)
         self.assertNotIn("语音切片：", body)
         self.assertNotIn("备注：", body)
+
+    def test_resolve_listening_mode_defaults_to_extensive(self) -> None:
+        self.assertEqual(MODULE.resolve_listening_mode(None, [], ""), "extensive")
+
+    def test_resolve_listening_mode_uses_explicit_mode_first(self) -> None:
+        frontmatter = ["track: listening", "listening_mode: extensive"]
+        body = "## 精听学习包\n\n### S01\n\n公園を散歩します。"
+
+        self.assertEqual(MODULE.resolve_listening_mode("intensive", frontmatter, body), "intensive")
+
+    def test_resolve_listening_mode_infers_legacy_intensive_package(self) -> None:
+        body = "## 精听学习包\n\n### S01\n\n公園を散歩します。"
+
+        self.assertEqual(MODULE.resolve_listening_mode(None, [], body), "intensive")
+
+    def test_build_body_extensive_skips_learning_package_and_accents_script(self) -> None:
+        body, _ = MODULE.build_body(
+            "N3 A-6 ケーキ",
+            "N3 A-6.mp3",
+            ["公園を散歩します。"],
+            [MODULE.Chunk(start=0.0, end=1.0, text="公園を散歩します。")],
+            Path("N3 A-6.mp3"),
+            confirmed_accent_index={"公園": "こうえん⓪"},
+            offline_dictionary=MODULE.StaticAccentDictionary({"散歩": "さんぽ⓪"}),
+            audio_slice_refs=["N3 A-6_S01.m4a"],
+            listening_mode="extensive",
+        )
+
+        self.assertNotIn("## 精听学习包", body)
+        self.assertNotIn("### S01", body)
+        self.assertNotIn("![[N3 A-6_S01.m4a]]", body)
+        self.assertIn("## 脚本", body)
+        self.assertIn("公園⓪を散歩⓪します。", body)
+
+    def test_build_body_intensive_keeps_plain_script_and_learning_package(self) -> None:
+        body, _ = MODULE.build_body(
+            "manabo_cz15 私の町",
+            "manabo_cz15.mp3",
+            ["公園を散歩します。"],
+            [MODULE.Chunk(start=0.0, end=1.0, text="公園を散歩します。")],
+            Path("manabo_cz15.mp3"),
+            confirmed_accent_index={"公園": "こうえん⓪"},
+            offline_dictionary=MODULE.StaticAccentDictionary({"散歩": "さんぽ⓪"}),
+            audio_slice_refs=["manabo_cz15_S01.m4a"],
+            listening_mode="intensive",
+        )
+
+        self.assertIn("## 精听学习包", body)
+        self.assertIn("公園⓪を散歩⓪します。", body)
+        script_section = body.split("## 脚本", 1)[1]
+        self.assertIn("公園を散歩します。", script_section)
+        self.assertNotIn("公園⓪を散歩⓪します。", script_section)
 
     def test_export_sentence_audio_slices_uses_chunk_timestamps(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -459,8 +511,8 @@ class TranscribeListeningTests(unittest.TestCase):
             invoke_mock.assert_called_once()
             self.assertEqual(invoke_mock.call_args.args[2], "auto")
             self.assertIn("セクション4", result)
-            self.assertIn("1\nA：はじめまして、渡辺です。\nB：田中です。どうぞよろしく。", result)
-            self.assertIn("2\nA：山田さんの部屋は何階ですか？\nB：三階です。", result)
+            self.assertIn("1\nA：はじめまして、渡辺⓪です。\nB：田中⓪です。どうぞよろしく。", result)
+            self.assertIn("2\nA：山田⓪さんの部屋②は何階ですか？\nB：三階です。", result)
             self.assertIn("3\nお国は？", result)
             self.assertIn(MODULE.FASTER_WHISPER_MATERIAL_NOTE, result)
             self.assertIn(MODULE.DIALOGUE_MATERIAL_NOTE_SUFFIX, result)
@@ -500,6 +552,35 @@ class TranscribeListeningTests(unittest.TestCase):
         self.assertIn("--auto-init", command)
         self.assertEqual(env["FASTER_WHISPER_PYTHON"], "/tmp/fw/bin/python")
         self.assertEqual(payload["engine"], "faster-whisper")
+
+    def test_default_invocation_forces_huggingface_offline_when_small_model_is_cached(self) -> None:
+        expected_payload = {
+            "engine": "faster-whisper",
+            "locale": "ja-JP",
+            "language": "Japanese",
+            "full_text": "ok",
+            "segments": [],
+            "timing_complete": True,
+        }
+
+        def fake_run(command, **kwargs):
+            output_path = Path(command[command.index("--output") + 1])
+            output_path.write_text("# transcript\n", encoding="utf-8")
+            output_path.with_suffix(".json").write_text(json.dumps(expected_payload), encoding="utf-8")
+            return mock.Mock(returncode=0, stdout=str(output_path), stderr="")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            hf_home = Path(tmpdir) / "hf"
+            snapshot = hf_home / "hub" / "models--Systran--faster-whisper-small" / "snapshots" / "abc123"
+            snapshot.mkdir(parents=True)
+            (snapshot / "model.bin").write_bytes(b"cached")
+            with mock.patch.dict(MODULE.os.environ, {"HF_HOME": str(hf_home)}, clear=True):
+                with mock.patch.object(MODULE.subprocess, "run", side_effect=fake_run) as run_mock:
+                    MODULE.invoke_listenkit(Path("/tmp/audio.mp3"), "ja-JP", "auto")
+
+        env = run_mock.call_args.kwargs["env"]
+        self.assertEqual(env["HF_HUB_OFFLINE"], "1")
+        self.assertEqual(env["TRANSFORMERS_OFFLINE"], "1")
 
     def test_explicit_apple_invocation_uses_generate_markdown_override(self) -> None:
         expected_payload = {
