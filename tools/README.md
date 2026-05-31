@@ -42,13 +42,13 @@ zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.
 jp-listening-script-generator
   -> run-listening-transcribe.sh
   -> tools/listening-transcribe-official/transcribe_listening.py
-  -> ../ListenKit/cli/transcribe-audio.sh
+  -> ../ListenKit/cli/generate-markdown.sh
 ```
 
 依賴：
 
 - Skill wrapper：`codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.sh`
-- 通用轉寫能力：`../ListenKit/cli/transcribe-audio.sh`
+- 通用轉寫能力：`../ListenKit/cli/generate-markdown.sh`
 - 離線詞典快取：由 `setup_offline_dictionary.py` 維護。
 
 #### 常用句邊界
