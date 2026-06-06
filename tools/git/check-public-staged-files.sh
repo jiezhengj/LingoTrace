@@ -38,9 +38,9 @@ case "${1:-}" in
 esac
 
 if [ "$mode" = "staged" ]; then
-  files=$(git diff --cached --name-only --diff-filter=ACMR)
+  files=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR)
 else
-  files=$(git diff --name-only --diff-filter=ACMR "$range")
+  files=$(git -c core.quotePath=false diff --name-only --diff-filter=ACMR "$range")
 fi
 
 if [ -z "$files" ]; then
@@ -48,7 +48,8 @@ if [ -z "$files" ]; then
   exit 0
 fi
 
-allowed_re='^(\.github/workflows/[^/]+\.ya?ml|\.gitignore|AGENTS\.md|README\.md|LICENSE|codex-skills/|tools/README\.md|tools/listening-transcribe-official/|tools/vault-structure/|tools/git/)'
+allowed_re='^(\.github/workflows/[^/]+\.ya?ml|\.gitignore|AGENTS\.md|README\.md|LICENSE|docs/[^/]+\.md|系统配置/|学习系统/总训练\.base|codex-skills/|tools/README\.md|tools/listening-transcribe-official/|tools/vault-structure/|tools/git/)'
+public_scaffold_re='^(系统配置/|学习系统/总训练\.base$)'
 private_path_re='(^|/)(\.obsidian|tmp|学习系统|筆記|笔记)(/|$)'
 private_ext_re='\.(mp3|m4a|wav|flac|mp4|mov|webm|pdf|jpg|jpeg|png|heic)$'
 generated_re='(^|/)__pycache__(/|$)|\.pyc$|\.pyo$'
@@ -58,7 +59,7 @@ bad_files=""
 while IFS= read -r file; do
   [ -z "$file" ] && continue
 
-  if [[ "$file" =~ $private_path_re ]] || [[ "$file" =~ $private_ext_re ]] || [[ "$file" =~ $generated_re ]]; then
+  if { [[ "$file" =~ $private_path_re ]] && ! [[ "$file" =~ $public_scaffold_re ]]; } || [[ "$file" =~ $private_ext_re ]] || [[ "$file" =~ $generated_re ]]; then
     bad_files="${bad_files}${file} :: private or generated path is never allowed"$'\n'
     continue
   fi
