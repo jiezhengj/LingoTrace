@@ -32,7 +32,7 @@ Do not treat folder paths in prose as the source of truth. System-managed path r
 
 ## Git Workflow
 
-- Treat `main` as the protected public branch for `feiyanqiqiao/JapanLearning`.
+- Treat `main` as the protected public branch for the LingoTrace public repository.
 - For every public repository update, including documentation-only changes, create a topic branch, commit there, push the branch, and merge through a pull request.
 - Do not commit or push directly to `main`.
 - Start each topic branch from a clean, current `main`: fetch GitHub, run `git pull --ff-only origin main`, then create the branch.
