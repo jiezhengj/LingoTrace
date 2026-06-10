@@ -5,6 +5,27 @@
 
 ---
 
+## [20260610-V3-Multi-Language-Architecture-Code-Review-Fix]
+
+### 修复 (Fixed)
+
+#### P0 级架构违背修复
+- **Bases 公式遗漏 `pronunciation` 字段**：更新 `学习系统/总训练.base` 的 `core_text` 公式，添加 `pronunciation`、`en_text` 字段支持
+- **模板目录未实施双轨制隔离**：
+  - 将现有模板移入 `系统配置/模板/jp/` 目录
+  - 创建 `系统配置/模板/en/` 目录及英语专属模板
+  - 英语模板包含：单词卡、课堂笔记、语法卡、录入模板索引、每日学习清单
+
+#### P1 级执行遗漏修复
+- **遗漏 CI 拦截防线工作流**：新增 `.github/workflows/multi-language-smoke.yml`
+  - 支持 Python 3.10/3.11/3.12 矩阵测试
+  - 运行所有单元测试
+  - 验证 config.json schema
+  - 验证模板目录结构
+  - 验证 agent-skills 目录结构
+
+---
+
 ## [20260610-V3-Multi-Language-Architecture]
 
 ### 新增 (Added)
