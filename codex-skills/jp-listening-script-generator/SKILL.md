@@ -1,6 +1,6 @@
 ---
 name: jp-listening-script-generator
-description: Use when turning one local audio file or media URL into this vault's fixed Japanese listening-practice note format, including 泛听, 精听 learning blocks, Shadowing dialogue-group slices, and missing-slice repair. Do not use for flexible source notes, general study notes from transcripts, or review card creation and maintenance.
+description: Use when turning one local audio file or media URL into this vault's fixed Japanese listening-practice note format, including 泛听, 精听 sentence/dialogue learning blocks, numbered dialogue slices, and missing-slice repair. Do not use for flexible source notes, general study notes from transcripts, or review card creation and maintenance.
 ---
 
 # JP Listening Script Generator
@@ -30,21 +30,28 @@ Prefer single-item processing first. The main path is:
 
 1. identify one local audio file under a listening material directory's `attach/`, or one URL plus a target material directory under `学习系统/听力`
 2. locate the matching note, or create a new note when none exists yet
-3. run the transcription pipeline
-4. render the Markdown draft note
+3. run the recording/audio-chain preflight before generating a final note
+   - source audio must exist and be non-empty
+   - ListenKit `generate-markdown.sh` must be available
+   - intensive mode also requires ListenKit `export-audio-slices.py`, `ffmpeg`, and `ffprobe`
+4. run the transcription pipeline and persist traceable ListenKit artifacts under `artifacts/`
+   - local audio and URL input both keep `.listenkit.md` and `.listenkit.json`
+   - intensive exports also keep `<audio_stem>.slice-export.json` and `<audio_stem>.review.md`
+   - do not use a low-quality `extensive` note as an intermediate artifact; use saved transcript artifacts and a reviewed manifest instead
+5. render the Markdown draft note
    - the CLI requires a prepared offline dictionary cache for inline accent candidates; if it is missing, run the setup script described below
    - default mode is `extensive` 泛听: the note has an accent-marked `## 脚本` but no `## 精听学习包` and no sentence slices
    - use `--listening-mode intensive` for 精听: the note includes `## 精听学习包` before the plain `## 脚本`
    - each intensive learning block uses only `### SNN`, the accent-marked text, and the real learning-block audio embed
-5. unless the user explicitly asked for `--dry-run`, immediately enter a second editing phase:
+6. unless the user explicitly asked for `--dry-run`, immediately enter a second editing phase:
    - read the generated `## 脚本`
    - use model judgment to choose `0-5` truly reusable sentences
    - write the final `## 可直接背的常用句`
    - sync frontmatter `daily_use_sentences`
-6. for `intensive`, verify that `segment_count`, `### SNN` blocks, embeds, and real non-empty slice files all match
-7. only then treat the note as complete
+7. for `intensive`, verify that `segment_count`, `### SNN` blocks, embeds, and real non-empty slice files all match
+8. only then treat the note as complete
 
-For `Shadowing_初中級` intensive notes, completion also requires real dialogue-group audio files. A Markdown draft with `（语音切片待生成）` placeholders is an intermediate artifact, not a finished note. Follow the Shadowing fallback procedure below whenever automatic export does not create every requested slice.
+For dialogue-type intensive notes, completion also requires real dialogue-group audio files. A Markdown draft with `（语音切片待生成）` placeholders is an intermediate artifact, not a finished note. Use a reviewed manifest whenever automatic content classification or export cannot create every requested slice.
 
 Context-budget rule for this skill:
 
@@ -71,22 +78,30 @@ The generator delegates transcript acquisition to ListenKit's Markdown workflow 
 - `--engine apple` explicitly requests ListenKit's Apple Speech route
 - `--engine faster-whisper` explicitly requests ListenKit's faster-whisper route
 - URL input treats `--output-dir` as the material directory: finalized audio goes into its `attach/`, raw ListenKit `.listenkit.md/.json` artifacts go into `artifacts/`, and the learning note stays at the material-directory root
-- local audio under `attach/` also generates or updates the learning note at the parent material-directory root; legacy root-level local audio input remains readable during migration
+- local audio under `attach/` also generates or updates the learning note at the parent material-directory root, and now also persists raw ListenKit `.listenkit.md/.json` artifacts under `artifacts/`; legacy root-level local audio input remains readable during migration
 - ListenKit's `cli/export-audio-slices.py` exports real learning-block clips from an explicit time-range manifest; do not bypass it with raw `ffmpeg` calls
+- intensive routing is content-based, never path-based: `dialogue/numbered`, `dialogue/exchange`, or `sentence/sentence`
+- intensive slice export must be non-overlapping; numbered dialogue uses exact numbered boundaries with `0.0` padding, while ordinary dialogue and sentence material use `0.5` seconds only inside safe blank space
+- in numbered dialogue, the spoken group number belongs to its own `SNN` clip and text block; no clip may include the previous or next group's number or dialogue
+- use `--slice-profile auto|dialogue|sentence` when automatic classification needs an explicit override; precedence is CLI override, reviewed manifest metadata, then automatic content detection
 
 The vault wrapper passes ListenKit's `--auto-init` flag for the default/faster-whisper route. On first use, ListenKit may create `../ListenKit/.venv` and install faster-whisper; do not create `.venv` manually from the vault parent directory.
 
 ```bash
 zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.sh "学习系统/听力/Shadowing_初中級/Unit1/attach/04.mp3" --engine faster-whisper --locale ja-JP --dry-run
 zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.sh "学习系统/听力/中級を学ぼう/attach/manabo_cz22.mp3" --listening-mode intensive --dry-run
+zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.sh "学习系统/听力/自学素材/attach/dialogue.mp3" --listening-mode intensive --slice-profile dialogue --dry-run
 ```
 
 Set `FASTER_WHISPER_PYTHON=/path/to/python` only when intentionally overriding ListenKit's repo-local environment.
 
-Set `JP_LISTENING_PYTHON=/path/to/python3` only when intentionally overriding the vault wrapper's Python runtime. On Apple Silicon macOS, the wrapper prefers `/opt/homebrew/bin/python3` when available so the offline dictionary cache and generator use the same Python ABI.
+For faster-whisper on Apple Silicon, use a stable Python 3.12 or 3.11 environment. Do not initialize faster-whisper with Homebrew's unversioned `python3` when it resolves to Python 3.14; this local workflow keeps ListenKit's `.venv` on Python 3.12 to avoid import stalls in native ASR dependencies.
+
+Set `JP_LISTENING_PYTHON=/path/to/python3` only when intentionally overriding the vault wrapper's Python runtime. On Apple Silicon macOS, the wrapper prefers `/opt/homebrew/bin/python3.12` when available so the offline dictionary cache and generator avoid the faster-whisper-incompatible Python 3.14 path.
 
 The current local test setup uses:
 
+- Python: `../ListenKit/.venv/bin/python` built from `/opt/homebrew/bin/python3.12`
 - model: `small`
 - device: `cpu`
 - compute type: `int8`
@@ -204,18 +219,22 @@ For dialogue-type listening content, apply a dialogue template layer on top of t
 
 Use one learning-block model for every intensive note:
 
-- general intensive material: default to one natural sentence per block
-- numbered `Shadowing_*` material: default to one complete numbered dialogue per block, even when it spans several ASR chunks
+- `dialogue/numbered`: one complete numbered dialogue per block; requires at least two consecutive numbered groups and reliable two- or four-turn exchanges
+- `dialogue/exchange`: one complete unnumbered question/answer exchange per block; preserve a reliable four-turn exchange when the middle pause is no more than `1.0` second, otherwise use two-turn blocks
+- `sentence/sentence`: one natural sentence per block
 - manually reviewed material: allow AI or human edits to block boundaries through `--slice-manifest PATH`
 
-The generated manifest lives at `artifacts/<audio_stem>.slices.json`. It contains explicit `SNN`, `start`, and `end` values. ListenKit owns deterministic clip export; this skill owns semantic grouping, accent rendering, Obsidian embeds, and final verification.
+The generated manifest lives at `artifacts/<audio_stem>.slices.json`. It contains explicit `SNN`, `start`, and `end` values plus optional `slice_profile` metadata (`kind`, `grouping`, `source`, `number_markers`, and `padding_seconds`). A default-path manifest whose profile has `source: manifest` is treated as reviewed and reused on later runs; automatically generated `source: auto|cli` manifests are recalculated unless explicitly supplied through `--slice-manifest`. ListenKit owns deterministic clip export; this skill owns content classification, semantic grouping, accent rendering, Obsidian embeds, and final verification. Intensive runs also write the resolved profile into `artifacts/<audio_stem>.slice-export.json` and `artifacts/<audio_stem>.review.md`.
 
-For numbered Shadowing material:
+For numbered dialogue material, including common `Shadowing_*` sources:
 
-- use `セクションN` and spoken group numbers only as boundaries
-- exclude the spoken group number from the exported clip
+- use `セクションN` only as a section label, not as a learning slice
+- include each spoken group number as the first audio/text line of its own `SNN` slice
+- keep numbered dialogue slices independent: do not allow one `SNN` clip to include the next or previous group number or dialogue
 - stop and request a reviewed `--slice-manifest` when numbering, order, or timestamps are unreliable
 - never mark the note complete while placeholders or missing `SNN.m4a` files remain
+
+Path names such as `Shadowing_*` are not routing signals. A monologue stored under such a path remains `sentence/sentence`, while a reliable numbered dialogue stored under a neutral path remains `dialogue/numbered`. Generic normalization may standardize punctuation, whitespace, and full-width digits, but must not apply material-specific word corrections such as `何回→何階`; put those corrections in reviewed transcript/manifest artifacts.
 
 Example manual override:
 
