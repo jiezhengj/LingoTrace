@@ -52,7 +52,7 @@ jp-listening-script-generator
 - 通用轉寫能力：`../ListenKit/cli/generate-markdown.sh`
 - 通用時間範圍切片能力：`../ListenKit/cli/export-audio-slices.py`
 - 離線詞典快取：由 `setup_offline_dictionary.py` 維護。
-- Python runtime：Apple Silicon macOS 預設優先使用 `/opt/homebrew/bin/python3.12`；需要覆蓋時設定 `JP_LISTENING_PYTHON`。faster-whisper 的 ListenKit `.venv` 也應使用 Python 3.12/3.11，避免 Homebrew `python3` 指向 Python 3.14 時卡在 native ASR 依賴 import。
+- Python runtime：Apple Silicon macOS 固定使用 `/opt/homebrew/bin/python3.14`；需要覆蓋時設定 `JP_LISTENING_PYTHON`。ListenKit `.venv` 也由同一個 3.14 runtime 建立，faster-whisper import 健康檢查有 60 秒上限。
 
 #### 精聽學習語塊
 
@@ -102,14 +102,14 @@ jp-listening-script-generator
 常用命令：
 
 ```bash
-python3 tools/listening-transcribe-official/setup_offline_dictionary.py --check
-python3 tools/listening-transcribe-official/setup_offline_dictionary.py --install
+/opt/homebrew/bin/python3.14 tools/listening-transcribe-official/setup_offline_dictionary.py --python /opt/homebrew/bin/python3.14 --check
+/opt/homebrew/bin/python3.14 tools/listening-transcribe-official/setup_offline_dictionary.py --python /opt/homebrew/bin/python3.14 --install
 ```
 
 依賴：
 
 - Python
-- Vault 外部快取目錄：預設為 `~/Library/Caches/jp-listening-dicts`
+- Vault 外部快取目錄：預設為 `~/Library/Caches/jp-listening-dicts`；Python 套件按 ABI 放在 `python/<cache_tag>`，3.14 為 `python/cpython-314`，根目錄 `accent_map.json` 保持跨版本共用。
 - 可用 `JP_LISTENING_DICT_DIR` 覆蓋預設位置。
 
 ### 測試

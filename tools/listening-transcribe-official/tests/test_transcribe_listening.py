@@ -1,4 +1,5 @@
 import importlib.util
+import importlib.machinery
 import json
 import os
 import subprocess
@@ -18,10 +19,21 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 SETUP_MODULE_PATH = Path(__file__).resolve().parents[1] / "setup_offline_dictionary.py"
+SETUP_SPEC = importlib.util.spec_from_file_location("setup_offline_dictionary", SETUP_MODULE_PATH)
+SETUP_MODULE = importlib.util.module_from_spec(SETUP_SPEC)
+assert SETUP_SPEC.loader is not None
+sys.modules[SETUP_SPEC.name] = SETUP_MODULE
+SETUP_SPEC.loader.exec_module(SETUP_MODULE)
 WRAPPER_PATH = Path(__file__).resolve().parents[3] / "codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.sh"
 
 
 class TranscribeListeningTests(unittest.TestCase):
+    def test_wrapper_defaults_to_homebrew_python314(self) -> None:
+        wrapper = WRAPPER_PATH.read_text(encoding="utf-8")
+
+        self.assertIn('/opt/homebrew/bin/python3.14', wrapper)
+        self.assertNotIn('/opt/homebrew/bin/python3.12', wrapper)
+
     def test_wrapper_uses_jp_listening_python_override(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -227,6 +239,15 @@ class TranscribeListeningTests(unittest.TestCase):
             )
 
         self.assertIn("公園⓪を散歩します。", package)
+
+    def test_offline_dictionary_uses_runtime_abi_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dictionary = MODULE.OfflineAccentDictionary(Path(tmpdir))
+
+            self.assertEqual(
+                dictionary.python_target,
+                Path(tmpdir) / "python" / sys.implementation.cache_tag,
+            )
 
     def test_learning_package_marks_unknown_focus_terms_as_pending_confirmation(self) -> None:
         package = MODULE.build_learning_package(
@@ -1364,7 +1385,15 @@ class TranscribeListeningTests(unittest.TestCase):
         self.assertTrue(dialogue_mode)
         self.assertIn("7\nA：お名前は？\nB：ペドロです。\nA：お国は？\nB：スペインです。", rendered)
 
-    def test_setup_offline_dictionary_check_reports_static_cache(self) -> None:
+    def test_setup_python_target_is_abi_specific(self) -> None:
+        cache_dir = Path("/tmp/dict-cache")
+
+        self.assertEqual(
+            SETUP_MODULE.python_target(cache_dir, "cpython-314"),
+            cache_dir / "python" / "cpython-314",
+        )
+
+    def test_setup_offline_dictionary_check_rejects_static_only_cache(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             cache_dir = root / "dict-cache"
@@ -1374,20 +1403,55 @@ class TranscribeListeningTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            spec = importlib.util.spec_from_file_location("setup_offline_dictionary", SETUP_MODULE_PATH)
-            setup_module = importlib.util.module_from_spec(spec)
-            assert spec.loader is not None
-            spec.loader.exec_module(setup_module)
-
             stdout = StringIO()
-            with mock.patch.object(sys, "argv", ["setup-offline-dictionary", "--check"]):
+            with mock.patch.object(sys, "argv", ["setup-offline-dictionary", "--check", "--python", sys.executable]):
                 with mock.patch.dict(os.environ, {"JP_LISTENING_DICT_DIR": str(cache_dir)}, clear=False):
                     with mock.patch("sys.stdout", stdout):
-                        exit_code = setup_module.main()
+                        exit_code = SETUP_MODULE.main()
 
-            self.assertEqual(exit_code, 0)
+            self.assertEqual(exit_code, 1)
             self.assertIn(str(cache_dir), stdout.getvalue())
             self.assertIn("accent_map.json", stdout.getvalue())
+            self.assertIn(sys.implementation.cache_tag, stdout.getvalue())
+
+    def test_setup_offline_dictionary_ignores_wrong_abi_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            wrong_target = cache_dir / "python" / "cpython-312"
+            wrong_target.mkdir(parents=True)
+            (wrong_target / "fugashi.py").write_text("raise RuntimeError('wrong ABI used')\n", encoding="utf-8")
+
+            ok, messages = SETUP_MODULE.check_cache(cache_dir, sys.executable)
+
+            self.assertFalse(ok)
+            self.assertIn(sys.implementation.cache_tag, "\n".join(messages))
+            self.assertIn("not ready", "\n".join(messages))
+
+    def test_setup_offline_dictionary_rejects_missing_packages(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            (cache_dir / "python" / sys.implementation.cache_tag).mkdir(parents=True)
+
+            ok, messages = SETUP_MODULE.check_cache(cache_dir, sys.executable)
+
+            self.assertFalse(ok)
+            self.assertIn("not ready", "\n".join(messages))
+
+    def test_setup_offline_dictionary_rejects_broken_extension(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            target = cache_dir / "python" / sys.implementation.cache_tag
+            target.mkdir(parents=True)
+            extension_suffix = importlib.machinery.EXTENSION_SUFFIXES[0]
+            (target / f"fugashi{extension_suffix}").write_bytes(b"not a mach-o extension")
+            (target / "unidic_lite.py").write_text("DICDIR = '/tmp'\n", encoding="utf-8")
+
+            ok, messages = SETUP_MODULE.check_cache(cache_dir, sys.executable)
+
+            self.assertFalse(ok)
+            rendered = "\n".join(messages)
+            self.assertIn("not ready", rendered)
+            self.assertIn(str(target), rendered)
 
 
 if __name__ == "__main__":

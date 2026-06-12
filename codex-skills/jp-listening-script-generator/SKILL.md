@@ -95,13 +95,13 @@ zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.
 
 Set `FASTER_WHISPER_PYTHON=/path/to/python` only when intentionally overriding ListenKit's repo-local environment.
 
-For faster-whisper on Apple Silicon, use a stable Python 3.12 or 3.11 environment. Do not initialize faster-whisper with Homebrew's unversioned `python3` when it resolves to Python 3.14; this local workflow keeps ListenKit's `.venv` on Python 3.12 to avoid import stalls in native ASR dependencies.
+For faster-whisper on Apple Silicon, use Homebrew Python 3.14. Initialize ListenKit with `LISTENKIT_FASTER_WHISPER_BOOTSTRAP_PYTHON=/opt/homebrew/bin/python3.14`; faster-whisper import checks have a 60-second limit and fail clearly instead of waiting indefinitely.
 
-Set `JP_LISTENING_PYTHON=/path/to/python3` only when intentionally overriding the vault wrapper's Python runtime. On Apple Silicon macOS, the wrapper prefers `/opt/homebrew/bin/python3.12` when available so the offline dictionary cache and generator avoid the faster-whisper-incompatible Python 3.14 path.
+Set `JP_LISTENING_PYTHON=/path/to/python3` only when intentionally overriding the vault wrapper's Python runtime. On Apple Silicon macOS, the wrapper requires `/opt/homebrew/bin/python3.14` by default so the generator and offline dictionary use one runtime and ABI.
 
 The current local test setup uses:
 
-- Python: `../ListenKit/.venv/bin/python` built from `/opt/homebrew/bin/python3.12`
+- Python: `../ListenKit/.venv/bin/python` built from `/opt/homebrew/bin/python3.14`
 - model: `small`
 - device: `cpu`
 - compute type: `int8`
@@ -120,12 +120,14 @@ zsh codex-skills/jp-listening-script-generator/scripts/run-listening-transcribe.
 The listening note renderer uses a local dictionary cache for word selection, reading, and accent candidates. The default cache is outside the vault:
 
 - default: `~/Library/Caches/jp-listening-dicts`
+- Python packages: `~/Library/Caches/jp-listening-dicts/python/cpython-314`
+- cross-version static data: `~/Library/Caches/jp-listening-dicts/accent_map.json`
 - override: `JP_LISTENING_DICT_DIR=/path/to/cache`
 
 Check the cache before first use:
 
 ```bash
-python3 tools/listening-transcribe-official/setup_offline_dictionary.py --check
+/opt/homebrew/bin/python3.14 tools/listening-transcribe-official/setup_offline_dictionary.py --python /opt/homebrew/bin/python3.14 --check
 ```
 
 The check output should include both sample tokens and sample accent candidates such as `公園⓪`; tokenization alone is not enough to prove accent lookup is wired into the generator.
@@ -133,7 +135,7 @@ The check output should include both sample tokens and sample accent candidates 
 Install the offline dictionary packages when the check says the cache is not ready:
 
 ```bash
-python3 tools/listening-transcribe-official/setup_offline_dictionary.py --install
+/opt/homebrew/bin/python3.14 tools/listening-transcribe-official/setup_offline_dictionary.py --python /opt/homebrew/bin/python3.14 --install
 ```
 
 The installer writes Python packages such as `fugashi` and `unidic-lite` under the cache directory, not inside the Obsidian vault or the skill folder. The generator must fail clearly when the cache is missing; do not silently generate guessed accent data.

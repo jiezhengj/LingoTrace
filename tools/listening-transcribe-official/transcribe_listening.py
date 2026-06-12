@@ -188,6 +188,7 @@ class StaticAccentDictionary:
 class OfflineAccentDictionary(StaticAccentDictionary):
     def __init__(self, cache_dir: Path) -> None:
         self.cache_dir = cache_dir
+        self.python_target = cache_dir / "python" / sys.implementation.cache_tag
         entries = load_static_accent_entries(cache_dir)
         super().__init__(entries)
         self._tagger = None
@@ -207,9 +208,8 @@ class OfflineAccentDictionary(StaticAccentDictionary):
     def _load_tagger(self):
         if self._tagger is not None or self._tagger_error is not None:
             return self._tagger
-        python_dir = self.cache_dir / "python"
-        if python_dir.exists():
-            sys.path.insert(0, str(python_dir))
+        if self.python_target.exists():
+            sys.path.insert(0, str(self.python_target))
         try:
             import fugashi  # type: ignore
             import unidic_lite  # type: ignore
@@ -219,6 +219,44 @@ class OfflineAccentDictionary(StaticAccentDictionary):
             self._tagger_error = exc
             self._tagger = None
         return self._tagger
+
+    def runtime_details(self) -> str:
+        return (
+            f"Python: {sys.executable}\n"
+            f"Version: {sys.version.split()[0]}\n"
+            f"ABI tag: {sys.implementation.cache_tag}\n"
+            f"Dictionary target: {self.python_target}\n"
+            f"Repair: `{sys.executable} {Path(__file__).with_name('setup_offline_dictionary.py')} "
+            f"--python {sys.executable} --install`"
+        )
+
+    def validate_runtime(self) -> list[str]:
+        tagger = self._load_tagger()
+        if tagger is None:
+            detail = str(self._tagger_error) if self._tagger_error else "unknown import error"
+            raise OfflineDictionaryError(
+                f"Offline dictionary runtime validation failed: {detail}\n{self.runtime_details()}"
+            )
+        try:
+            words = list(tagger("公園を散歩します。"))
+        except Exception as exc:
+            raise OfflineDictionaryError(
+                f"Offline dictionary sample parse failed: {exc}\n{self.runtime_details()}"
+            ) from exc
+        if not words:
+            raise OfflineDictionaryError(
+                f"Offline dictionary parsed no tokens for the health-check sentence.\n{self.runtime_details()}"
+            )
+        accents: list[str] = []
+        for word in words:
+            marks = accent_marks_from_type(str(getattr(word.feature, "aType", "") or ""))
+            if marks:
+                accents.append(f"{word.surface}{marks}")
+        if not accents:
+            raise OfflineDictionaryError(
+                f"Offline dictionary returned no accent candidates for the health-check sentence.\n{self.runtime_details()}"
+            )
+        return accents
 
     def tokenize_terms(self, sentence: str) -> list[str]:
         tagger = self._load_tagger()
@@ -280,7 +318,7 @@ def load_static_accent_entries(cache_dir: Path) -> dict[str, str]:
 
 
 def offline_dictionary_ready(cache_dir: Path) -> bool:
-    return (cache_dir / "accent_map.json").exists() or (cache_dir / "python").exists()
+    return (cache_dir / "python" / sys.implementation.cache_tag).is_dir()
 
 
 def load_offline_dictionary(required: bool = True) -> StaticAccentDictionary:
@@ -288,12 +326,23 @@ def load_offline_dictionary(required: bool = True) -> StaticAccentDictionary:
     if not offline_dictionary_ready(cache_dir):
         if required:
             raise OfflineDictionaryError(
-                "Offline dictionary is not ready. Run "
-                "`python3 tools/listening-transcribe-official/setup_offline_dictionary.py --install` "
-                f"or set JP_LISTENING_DICT_DIR to a prepared cache. Checked: {cache_dir}"
+                "Offline dictionary is not ready for this Python ABI.\n"
+                f"Python: {sys.executable}\n"
+                f"Version: {sys.version.split()[0]}\n"
+                f"ABI tag: {sys.implementation.cache_tag}\n"
+                f"Checked: {cache_dir / 'python' / sys.implementation.cache_tag}\n"
+                f"Repair: `{sys.executable} {Path(__file__).with_name('setup_offline_dictionary.py')} "
+                f"--python {sys.executable} --install`"
             )
-        return StaticAccentDictionary({})
-    return OfflineAccentDictionary(cache_dir)
+        return StaticAccentDictionary(load_static_accent_entries(cache_dir))
+    dictionary = OfflineAccentDictionary(cache_dir)
+    try:
+        dictionary.validate_runtime()
+    except OfflineDictionaryError:
+        if required:
+            raise
+        return StaticAccentDictionary(load_static_accent_entries(cache_dir))
+    return dictionary
 
 
 def parse_args() -> argparse.Namespace:
