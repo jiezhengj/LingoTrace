@@ -382,6 +382,14 @@ def load_items(paths_config: PathsConfig) -> list[ItemState]:
         if not root_path.exists():
             raise ReviewUpdateError(f"Managed root is missing: {root_path}")
         for path in sorted(root_path.rglob("*.md")):
+            # Skip iCloud dataless placeholder files to avoid blocking on download
+            try:
+                st = path.stat()
+                if st.st_size > 0 and getattr(st, "st_blocks", 1) == 0:
+                    print(f"Skipping iCloud placeholder file: {path}")
+                    continue
+            except OSError:
+                continue
             text = path.read_text()
             if not text.startswith("---\n"):
                 continue
