@@ -111,6 +111,7 @@ class ContractExampleTests(unittest.TestCase):
             "migration": PHASE0_ROOT / "japanese-migration-contract.md",
             "exit": PHASE0_ROOT / "old-framework-exit-checklist.md",
             "phase1": PHASE0_ROOT / "phase-1-entry-gate.md",
+            "acceptance": PHASE0_ROOT / "pr-c-acceptance-matrix.md",
         }
         bodies = {name: read_required(path) for name, path in docs.items()}
 
@@ -275,6 +276,31 @@ class ContractExampleTests(unittest.TestCase):
             "project maintainers and Zheng Jie",
         ):
             self.assertIn(token, gate)
+
+    def test_pr_c_acceptance_matrix_maps_each_gate_to_evidence(self) -> None:
+        matrix = read_required(PHASE0_ROOT / "pr-c-acceptance-matrix.md")
+
+        for token in (
+            "AC-01",
+            "AC-02",
+            "AC-03",
+            "AC-04",
+            "AC-05",
+            "AC-06",
+            "AC-07",
+            "AC-08",
+            "AC-09",
+            "AC-10",
+            "architecture-contracts.md",
+            "language-pack-conformance-checklist.md",
+            "japanese-migration-contract.md",
+            "old-framework-exit-checklist.md",
+            "phase-1-entry-gate.md",
+            "test_contract_examples.py",
+            "External review required",
+            "not a Phase 0 completion claim",
+        ):
+            self.assertIn(token, matrix)
 
 
 if __name__ == "__main__":
