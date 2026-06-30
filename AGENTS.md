@@ -32,6 +32,9 @@ Do not treat folder paths in prose as the source of truth. Runtime path roles li
 - Avoid changing generated tools or helper scripts unless the task is specifically about the automation itself.
 - アクセント对比卡 belongs to the pronunciation accent role, not ordinary vocabulary. Do not place it in the normal vocabulary or sentence-practice roles; follow the concrete card rules in `系统配置/模板/录入模板索引.md`.
 - Phoneme contrast cards such as 清音/浊音, 送气, and 声带振动 belong in the pronunciation phoneme role, not in the sentence-practice role.
+- **Changelog Rule**: When modifying the project framework (e.g., source code, manifests, public templates, or core documentation), always ensure the project's `CHANGELOG.md` is updated.
+  - *Exclusion*: Do not write changelogs for daily user-content creation tasks (e.g., generating notes or vocabulary cards in the Vault).
+  - *Appropriate Timing*: Write the changelog entry only after all code changes are fully implemented and automated tests pass, but *before* executing the final `git commit`. This ensures the changelog reflects the true final state and is committed atomically with the code.
 
 ## Git Workflow
 
