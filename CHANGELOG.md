@@ -3,6 +3,17 @@
 版本号规则：`年月日-时分秒`（如 `20260606-065513`）。
 后续开始迭代本项目时，所有的功能演进、修复与架构变动都会记录于此。
 
+## [20260829-000654]
+### 变更
+- 同步中央 Spec Kit Reference 1.2.0：更新项目治理文档、本地治理管理器、Manifest 元数据及 `AGENTS.md` 受管治理区块。
+- 增加会话级中央 Reference 更新检查，并保留 `.specify/**`、`specs/**`、Codex 受管文件和项目业务规则不变。
+
+### 测试
+- `python3 tools/spec-kit-governance/governance.py verify`：`READY`。
+- `python3 tools/spec-kit-governance/governance.py check-update --source /Users/jiezhengj/Documents/Project/SpecKitReference`：`UP_TO_DATE`。
+- `specify integration status --json`：Codex 集成正常，managed files 0 缺失 0 修改。
+- `PYTHONPATH=. pytest -q`：446 passed，1 skipped，51 subtests passed。
+
 ## [20260821-152500]
 ### 新增
 - 部署自包含的 Spec Kit 项目级可移植治理包 `docs/spec-kit/`（含 `START_HERE.md`、`POLICY.md`、`REFERENCE.md`、`OPERATING_PROTOCOL.md`、`AGENT_ONBOARDING.md`、`LOCAL_OVERRIDES.md`、`PROJECT_CONFIG.json`、`ADAPTERS.json`、`MANIFEST.json`）与本地管理器 `tools/spec-kit-governance/governance.py`。
