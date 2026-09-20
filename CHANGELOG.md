@@ -3,6 +3,15 @@
 版本号规则：`年月日-时分秒`（如 `20260606-065513`）。
 后续开始迭代本项目时，所有的功能演进、修复与架构变动都会记录于此。
 
+## [20260921-发布]
+### 变更
+- 同步中央 Spec Kit Reference 2.0.0：更新项目治理文档、本地治理管理器、Manifest 元数据及 `AGENTS.md` 受管治理区块。
+- 增加与中央 Reference 无关的上游 Spec Kit CLI 会话级更新检查和已安装 integration、extension、workflow 刷新协议。
+
+### 测试
+- `python3 tools/spec-kit-governance/governance.py verify`：`READY`。
+- `python3 tools/spec-kit-governance/governance.py check-update --source /Users/jiezhengj/Documents/Project/SpecKitReference`：`UP_TO_DATE`。
+
 ## [20260829-000654]
 ### 变更
 - 同步中央 Spec Kit Reference 1.2.0：更新项目治理文档、本地治理管理器、Manifest 元数据及 `AGENTS.md` 受管治理区块。
