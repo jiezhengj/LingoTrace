@@ -86,6 +86,7 @@ __pycache__/
 # Shared Spec Kit project infrastructure.
 !.specify/
 !.specify/**
+.specify/**/.DS_Store
 .specify/feature.json
 .specify/extensions/*/local-config.yml
 !specs/
