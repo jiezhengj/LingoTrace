@@ -3,6 +3,16 @@
 版本号规则：`年月日-时分秒`（如 `20260606-065513`）。
 后续开始迭代本项目时，所有的功能演进、修复与架构变动都会记录于此。
 
+## [20260926-211500]
+### 变更
+- 将上下文锚点 `AGENTS.md` 全文项目自有规则翻译为中文，确保与项目文档语言策略（`zh`）保持一致。
+- 移除 `AGENTS.md` 中预设的 Git Workflow 章节，避免在未向用户明确汇报确认的情况下默认执行远端推送、PR 创建及合并清理动作。
+
+### 测试
+- `python tools/spec-kit-governance/governance.py verify`：`READY`。
+- `python tools/spec-kit-governance/governance.py doctor`：`READY`。
+- `python -m unittest`：通过 runtime 270、architecture baseline 42、Vault structure 23、listening 112 项测试，共计 447 项测试全部通过。
+
 ## [20260926-210400]
 ### 新增
 - 补齐并安装 Spec Kit 官方扩展 `assess`（Idea Assessment Pipeline v1.0.1）与 `bug`（Bug Triage Workflow v1.0.0）。

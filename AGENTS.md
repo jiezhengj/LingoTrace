@@ -1,12 +1,12 @@
-This repository is the public LingoTrace runtime outside users' private Obsidian Vaults. Treat notes, frontmatter, wikilinks, Bases, public templates, Vault initialization, runtime connections, and language-pack agent skills as part of the user-facing study system.
+本仓库是位于用户私有 Obsidian Vault 之外的公共 LingoTrace 运行时。请将笔记、Frontmatter、Wikilinks、Bases、公共模板、Vault 初始化、运行时连接以及语言包 Agent Skill 均视为面向用户的学习系统的一部分。
 
-# Primary Entry Points
+# 主要操作入口
 
-Use `lingotrace/packs/japanese/agent_skills/SKILL.md` as the natural-language operating entry for Japanese daily learning tasks.
+使用 `lingotrace/packs/japanese/agent_skills/SKILL.md` 作为日语日常学习任务的自然语言操作入口（natural-language operating entry）。
 
-Use `lingotrace/packs/english/agent_skills/SKILL.md` as the natural-language operating entry for English daily learning tasks. An initialized Vault's `AGENTS.md`, `.lingotrace/vault-context.json`, and current-platform runtime connection select the matching entry without requiring the user to name it.
+使用 `lingotrace/packs/english/agent_skills/SKILL.md` 作为英语日常学习任务的自然语言操作入口（natural-language operating entry）。已初始化的 Vault 根 `AGENTS.md`、`.lingotrace/vault-context.json` 以及当前平台的运行时连接会自动选择对应的操作入口，无需用户显式指定。
 
-Users should be able to ask in ordinary study language, such as:
+用户应当能够使用日常学习语言发起请求，例如：
 
 - "请把这段音频做成精听稿。"
 - "帮我把这篇材料整理成日语学习笔记。"
@@ -14,60 +14,41 @@ Users should be able to ask in ordinary study language, such as:
 - "这句话很实用，帮我做成口语卡。"
 - "今天复习结束了，帮我结算。"
 
-Do not ask users to mention workflow entrypoints, function names, data envelopes, or write-mode terms. The agent skill maps natural-language requests to the matching Japanese pack capability. Actual file changes must still go through the LingoTrace core and Japanese pack, including context checks, capability checks, path boundaries, and the core write guard.
+不要要求用户提及工作流入口（Do not ask users to mention workflow entrypoints）、函数名称、数据包络或写入模式术语。Agent Skill 会将自然语言请求映射到匹配的日语包能力。实际的文件变更仍必须经由 LingoTrace 核心与日语包（LingoTrace core and Japanese pack），包括上下文检查、能力检查、路径边界以及核心写入保护（core write guard）。
 
-Do not copy full schemas or workflow details into this document. Read the agent skill, the relevant `lingotrace/packs/japanese/` module, and public tests before changing the matching subsystem.
+不要向本文档复制完整的模式定义或工作流细节。在修改对应子系统之前，请先阅读相关的 Agent Skill、对应的 `lingotrace/packs/japanese/` 模块以及公开测试。
 
-# User Journeys
+# 用户旅程
 
-- A learner who only wants to study starts from `docs/learner-agent-setup.md`. Install only the minimal public runtime, keep the private Vault outside it, and use the Vault as the daily Agent workspace.
-- A developer starts from `docs/developer-agent-setup.md`, uses a full checkout and a topic branch, and then reuses the learner setup for their real Vault.
-- Do not make learners fork the project, install GitHub CLI, read contributor documents, or run the public development test suite.
-- Before changing onboarding behavior, read `docs/installation-and-onboarding-design.md` and keep the learner and developer routes distinct.
-- Both journeys perform the non-blocking daily update check defined in `docs/daily-runtime-update-design.md`. Official runtimes may update only after explicit consent; personal forks must be left for the user to synchronize in the developer workspace.
+- 仅希望进行学习的用户从 `docs/learner-agent-setup.md` 开始。仅安装最小公共运行时，将私有 Vault 保持在运行时目录外部，并将该 Vault 作为日常 Agent 工作区。
+- 开发者从 `docs/developer-agent-setup.md` 开始，使用完整的代码检出和主题分支，然后在其真实的 Vault 中复用学习者配置。
+- 不要要求学习者 fork 本项目、安装 GitHub CLI、阅读贡献者文档或运行公开开发测试套件。
+- 在修改引导配置流程之前，请先阅读 `docs/installation-and-onboarding-design.md`，确保学习者与开发者的路径保持独立。
+- 两条旅程均需执行 `docs/daily-runtime-update-design.md` 中定义的非阻塞每日更新检查。官方运行时仅在获得明确同意后方可更新；个人 fork 必须留给用户在开发者工作区中自行同步。
 
-# Path Roles
+# 路径角色
 
-Do not treat folder paths in prose as the source of truth. Runtime path roles live in each target Vault's `.lingotrace/paths.json`; pack defaults live in `lingotrace/packs/japanese/paths.json`. Update the pack default only when changing the shared Japanese template, and update private Vault config only during an explicit local operation.
+不要将正文中的文件夹路径视为单一事实来源。运行时路径角色位于每个目标 Vault 的 `.lingotrace/paths.json` 中；语言包默认路径位于 `lingotrace/packs/japanese/paths.json`。仅在修改共享的日语模板时更新语言包默认路径，并在显式的本地操作期间更新私有 Vault 配置。
 
-# Operating Rules
+# 操作规则
 
-- Prefer Obsidian-aware and Markdown-aware workflows for note search, note edits, frontmatter, wikilinks, and `.base` files.
-- Search before editing vocabulary. Check the focus review layer before the base lexicon so duplicate cards are not created.
-- For user-facing tasks that may update existing study state, describe the planned changes in ordinary language and ask for confirmation before saving them, except clear end-of-day review settlement requests. Clear review settlement runs an internal preview, applies if accepted, then verifies with a second preview.
-- Keep edits scoped. Do not reorder large sets of notes, bulk-rewrite frontmatter, or normalize unrelated Markdown while working on a narrow task.
-- Preserve manually curated content, especially listening-note sentence selections, review notes, and daily study summaries, unless the user explicitly asks to reset them.
-- Avoid changing generated tools or helper scripts unless the task is specifically about the automation itself.
-- アクセント对比卡 belongs to the pronunciation accent role, not ordinary vocabulary. Do not place it in the normal vocabulary or sentence-practice roles; follow the concrete card rules in `docs/multilingual/japanese-review-card-format-and-links.md`.
-- Phoneme contrast cards such as 清音/浊音, 送气, and 声带振动 belong in the pronunciation phoneme role, not in the sentence-practice role.
-- **Changelog Rule**: When modifying the project framework (e.g., source code, manifests, public templates, or core documentation), always ensure the project's `CHANGELOG.md` is updated.
-  - *Exclusion*: Do not write changelogs for daily user-content creation tasks (e.g., generating notes or vocabulary cards in the Vault).
-  - *Appropriate Timing*: Write the changelog entry only after all code changes are fully implemented and automated tests pass, but *before* executing the final `git commit`. This ensures the changelog reflects the true final state and is committed atomically with the code.
+- 优先使用支持 Obsidian 与 Markdown 规范的工作流进行笔记检索、笔记编辑、Frontmatter、Wikilinks 以及 `.base` 文件处理。
+- 编辑词汇卡前先进行检索。在编辑基础词库之前，先检查重点复习层，避免创建重复卡片。
+- 对于可能更新现有学习状态的面向用户任务，请使用日常白话描述计划中的变更，并在保存前征得确认；明确的每日复习结算请求除外。明确的复习结算执行内部预览，若确认接受则应用，随后通过二次预览进行验证。
+- 保持改动范围收敛。在执行单一任务时，不要重新排序大量笔记、批量重写 Frontmatter 或规范化无关的 Markdown 文件。
+- 保留人工整理的内容，特别是精听笔记中的选句、复习笔记和每日学习小结，除非用户明确要求重置。
+- 避免修改生成的工具或辅助脚本，除非该任务专门针对自动化本身。
+- 声调（アクセント）对比卡归属于发音声调（pronunciation accent）角色，不属于普通词汇。不要将其放入普通词汇或句子练习角色中；请遵循 `docs/multilingual/japanese-review-card-format-and-links.md` 中的具体卡片规则。
+- 清音/浊音、送气、声带振动等音素对比卡属于发音音素（pronunciation phoneme）角色，不要放入句子练习角色中。
+- **Changelog 规则**：在修改项目框架（如源代码、Manifests、公共模板或核心文档）时，必须确保更新项目的 `CHANGELOG.md`。
+  - *例外*：日常用户内容创建任务（例如在 Vault 中生成笔记或词汇卡）不编写 Changelog。
+  - *适当时机*：仅在所有代码变更均已完整实现并通过自动化测试之后、但在执行最终 `git commit` *之前* 编写 Changelog 条目。这确保 Changelog 能够反映最终真实状态并与代码原子性提交。
 
-# Git Workflow
+# 验证
 
-- Treat `main` as the protected public branch for the LingoTrace public repository.
-- For every public repository update, including documentation-only changes, create a topic branch, commit there, push the branch, and merge through a pull request.
-- Do not commit or push directly to `main`.
-- Before the first public change, inspect remotes. In a contributor checkout, `origin` should be the contributor's fork and `upstream` should be `https://github.com/feiyanqiqiao/LingoTrace.git`; do not assume that `origin` is canonical.
-- Start each topic branch from a clean, current `main`: fetch all remotes, compare local/fork/upstream `main`, tell the user when upstream has moved, then fast-forward local `main` from the canonical remote. In a fork workflow, push the synchronized `main` to `origin` before branching.
-- Use a complete checkout for framework development. The sparse `lingotrace/` checkout documented for ordinary learners is a runtime distribution, not a development workspace.
-- Prefer one active pull request per subsystem. If two pull requests must touch the same files, document the dependency order and update the later branch from the merged `main` before marking it ready.
-- Keep the topic branch while its pull request is open so review follow-up commits can be added safely.
-- Before marking a draft pull request ready or merging it, update the topic branch with the latest canonical `main` (`upstream/main` in a fork workflow), resolve conflicts intentionally, rerun the relevant checks, and update the pull request body with the final verification evidence.
-- After a pull request is merged, switch the local checkout back to `main`, fast-forward from the canonical remote, synchronize the fork if one exists, then delete the merged local topic branch and its fork remote branch.
-- If a merged branch is attached to a temporary worktree, verify that worktree is clean, remove it, and then delete the branch.
-- After cleanup, verify that the local checkout is on `main`, `main` tracks `origin/main`, and no completed topic branches remain locally or remotely.
-- Before committing or merging, review the staged file list and confirm it only contains public allowlisted files. Private notes, Obsidian state, audio, images, PDFs, and temporary transcription artifacts must stay untracked or ignored.
-- `lingotrace/packs/japanese/views/total-training.base` is the canonical reusable dashboard template. It must keep the today/next-day review filter semantics and must not be replaced by a broad `status == active` view.
-- Run `bash tools/git/check-public-staged-files.sh` before committing public changes. When GitHub Actions is available for this repository, use the same allowlist check against pull request diffs.
-- Do not bypass failing GitHub checks when they exist unless the failure is understood, documented in the pull request, and unrelated to the proposed change.
+对于纯文档变更，验证所引用的路径是否存在，且新指引不与相关的 `SKILL.md` 文件相冲突。
 
-# Verification
-
-For documentation-only changes, verify that referenced paths exist and that the new guidance does not contradict the relevant `SKILL.md` files.
-
-For note or workflow changes, prefer a small targeted check over broad vault scans. When a script has a dry-run mode, use that as the first verification step.
+对于笔记或工作流变更，优先使用小范围的针对性检查，而不是对整个 Vault 进行全面扫描。当脚本提供干运行（dry-run）模式时，将其作为第一验证步骤。
 
 <!-- PROJECT-SPEC-KIT-GOVERNANCE:START -->
 
