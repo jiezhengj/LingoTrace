@@ -89,6 +89,7 @@ __pycache__/
 .specify/**/.DS_Store
 .specify/feature.json
 .specify/extensions/*/local-config.yml
+.specify/extensions/.cache/
 !specs/
 !specs/**
 
