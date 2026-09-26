@@ -3,6 +3,19 @@
 版本号规则：`年月日-时分秒`（如 `20260606-065513`）。
 后续开始迭代本项目时，所有的功能演进、修复与架构变动都会记录于此。
 
+## [20260926-210400]
+### 新增
+- 补齐并安装 Spec Kit 官方扩展 `assess`（Idea Assessment Pipeline v1.0.1）与 `bug`（Bug Triage Workflow v1.0.0）。
+- 部署对应的受管 Agent Skills（`.agents/skills/speckit-assess-*` 与 `.agents/skills/speckit-bug-*`）。
+
+### 变更
+- 更新 `.gitignore` 与 `.specify/.gitignore`，显式忽略 Specify CLI 扩展目录下的目录缓存 `.specify/extensions/.cache/`。
+
+### 测试
+- `python tools/spec-kit-governance/governance.py check-capabilities`：`READY`（assess: true, bug: true）。
+- `python tools/spec-kit-governance/governance.py doctor`：`READY`。
+- `python -m unittest`：通过 runtime 270、architecture baseline 42、Vault structure 23、listening 112 项测试，共计 447 项测试全部通过。
+
 ## [20260921-发布]
 ### 变更
 - 同步中央 Spec Kit Reference 2.0.0：更新项目治理文档、本地治理管理器、Manifest 元数据及 `AGENTS.md` 受管治理区块。
